@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "83204591815",
+    "project_id": "ecofund-c4310",
+    "storage_bucket": "ecofund-c4310.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:83204591815:android:b295b2d4e78bbef91caee2",
+        "android_client_info": {
+          "package_name": "com.example.ecofund"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC3pwbA7x6pY59k2dQMwcUhV-d7LJMMYOI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
