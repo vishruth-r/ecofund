@@ -1,23 +1,30 @@
 import 'dart:convert';
 import 'package:ecofund/services/users_prefs.dart';
 import 'package:http/http.dart' as http;
+import 'package:firebase_messaging/firebase_messaging.dart'; // Import Firebase Messaging
 import '../constants.dart';
 
 class AuthServices {
   // Perform login with email and password
-  static Future<Map<String, dynamic>> login(String email,
-      String password) async {
+  static Future<Map<String, dynamic>> login(String email, String password) async {
     final url = Uri.parse('${AppAPI.baseUrl}/users/login');
     print('[LOGIN] URL: $url');
-    print(' [LOGIN] Payload: {email: $email, password: $password}');
 
     try {
+      // Fetch FCM token
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken == null) {
+        print('[LOGIN] FCM Token is null. Trying again...');
+        // Optionally, retry fetching the FCM token or handle this gracefully
+      }
+
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': email,
           'password': password,
+          'fcm_token': fcmToken, // Send FCM token with login request
         }),
       );
 
@@ -58,6 +65,7 @@ class AuthServices {
   }
 
 
+  // Signup with FCM token included
   static Future<Map<String, dynamic>> signup({
     required String name,
     required String email,
@@ -73,6 +81,9 @@ class AuthServices {
         '[SIGNUP] Payload: {name: $name, email: $email, password: $password, role: $role, upi_id: $upiId, pan_card: $panCard, serviceable_cities: $serviceableCities}');
 
     try {
+      // Fetch FCM token
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -87,6 +98,7 @@ class AuthServices {
               ? serviceableCities.split(',').map((city) =>
               city.trim()).toList()
               : null,
+          'fcm_token': fcmToken, // Send FCM token with signup request
         }),
       );
 
@@ -123,6 +135,31 @@ class AuthServices {
         'success': false,
         'message': 'An error occurred. Please try again.'
       };
+    }
+  }
+
+  static Future<dynamic> fetchUserDetails() async {
+    final url = Uri.parse('${AppAPI.baseUrl}/users/me');
+    final token = await UserPrefs.getToken();
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data; // Directly returning the user data
+      } else {
+        final error = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': error['message'] ?? 'Failed to load user details'
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred. Please try again.'};
     }
   }
 }

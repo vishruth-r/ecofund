@@ -126,6 +126,32 @@ class _HomeownerListingPageState extends State<HomeownerListingPage> {
                         ],
                       ),
                       const SizedBox(height: 8),
+                      // FUNDING BAR
+                      Builder(builder: (context) {
+                        //final funded = property['total_units_bought'] ?? 0;
+                        //converting funded to number
+                        final funded = int.tryParse(property['total_units_bought'].toString()) ?? 0;
+                        final fundingPercentage = (funded / 1000).clamp(0.0, 1.0);
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if(status == 'quoted')
+                            LinearProgressIndicator(
+                              value: fundingPercentage,
+                              backgroundColor: Colors.grey[300],
+                              color: Colors.green,
+                              minHeight: 6,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            if(status == 'quoted')
+                              const SizedBox(height: 4),
+                            if(status == 'quoted')
+                            Text('${(fundingPercentage * 100).toStringAsFixed(1)}% funded',
+                                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                          ],
+                        );
+                      }),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           const Icon(Icons.flash_on, size: 16, color: Colors.grey),

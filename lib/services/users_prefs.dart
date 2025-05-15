@@ -26,4 +26,9 @@ class UserPrefs {
     return user?['token'];
   }
 
+  static Future<String?> getRole() async {
+    final user = await getUser();
+    return user?['role'];
+  }
+
 }

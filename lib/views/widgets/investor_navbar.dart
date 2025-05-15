@@ -1,24 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:ecofund/routes.dart';
 
-class HomeownerBottomNavBar extends StatelessWidget {
+class InvestorBottomNavBar extends StatelessWidget {
   final int currentIndex;
 
-  const HomeownerBottomNavBar({
+  const InvestorBottomNavBar({
     super.key,
     required this.currentIndex,
   });
 
   void _handleNavigation(BuildContext context, int index) {
-    // Avoid re-navigating to the same page
     if (index == currentIndex) return;
 
     switch (index) {
       case 0:
-        Navigator.pushReplacementNamed(context, AppRoutes.homeownerDashboard);
+        Navigator.pushReplacementNamed(context, AppRoutes.investorDashboard);
         break;
       case 1:
-        Navigator.pushReplacementNamed(context, AppRoutes.homeownerListings);
+        Navigator.pushReplacementNamed(context, AppRoutes.investorInvestmentsPage);
         break;
       case 2:
       Navigator.pushReplacementNamed(context, AppRoutes.profile);
@@ -37,8 +36,8 @@ class HomeownerBottomNavBar extends StatelessWidget {
           label: 'Dashboard',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.list),
-          label: 'My Listings',
+          icon: Icon(Icons.pie_chart),
+          label: 'Investments',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.person),

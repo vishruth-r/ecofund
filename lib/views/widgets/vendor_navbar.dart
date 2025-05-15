@@ -20,7 +20,7 @@ class VendorBottomNavBar extends StatelessWidget {
         Navigator.pushReplacementNamed(context, AppRoutes.vendorListing);
         break;
       case 2:
-      //  Navigator.pushReplacementNamed(context, AppRoutes.vendorProfile);
+      Navigator.pushReplacementNamed(context, AppRoutes.profile);
         break;
     }
   }

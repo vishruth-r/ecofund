@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeownerServices {
   static Future<Map<String, dynamic>> fetchProperties() async {
+
     final url = Uri.parse('${AppAPI.baseUrl}/properties/my-properties');
     final token = await UserPrefs.getToken();
 

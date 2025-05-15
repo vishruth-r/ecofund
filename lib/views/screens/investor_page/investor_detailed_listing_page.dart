@@ -1,19 +1,22 @@
+import 'package:ecofund/services/investor_services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../services/homeonwer_services.dart';
 import '../../widgets/homeowner_navbar.dart';
 
-class DetailedListingPage extends StatelessWidget {
+class InvestorDetailedListingPage extends StatelessWidget {
   final Map<String, dynamic> property;
 
-  const DetailedListingPage({super.key, required this.property});
+  const InvestorDetailedListingPage({super.key, required this.property});
 
   @override
   Widget build(BuildContext context) {
     final investments = (property['investments'] ?? []) as List<dynamic>;
     final energyLogs = (property['energy_logs'] ?? []) as List<dynamic>;
-    final payments = (property['payments'] ?? []) as List<dynamic>;
+    final payouts = (property['investor_payouts'] ?? []) as List<dynamic>;
+    print("Property: ${property['investor_payouts']} ");
 
     final totalInvestment = investments.fold<double>(
       0,
@@ -62,9 +65,21 @@ class DetailedListingPage extends StatelessWidget {
                 property['property_status'] != 'quoted')
               _buildEnergyLogChart(energyData),
             const SizedBox(height: 16),
-            if (property['property_status'] != 'pending' &&
-                property['property_status'] != 'quoted')
-              _buildPaymentDetails(context, payments),
+            if(property['property_status'] == 'funded')
+              _buildPayoutCard(
+                context,
+                payouts
+              ),
+
+              const SizedBox(height: 16),
+            if (property['property_status'] == 'quoted')
+              //show the widget to make the investment
+              _buildInvestmentDialog(
+                context,
+                property
+              ),
+
+
           ],
         ),
       ),
@@ -72,6 +87,283 @@ class DetailedListingPage extends StatelessWidget {
 
     );
   }
+
+  Widget _buildPayoutCard(BuildContext context, List<dynamic> payouts) {
+    return Card(
+      elevation: 4,
+      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Investor Payouts",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...payouts.map<Widget>((payoutData) {
+              final payout = payoutData as Map<String, dynamic>;
+              final payoutDate = DateTime.parse(payout['payout_date']);
+              final payoutStatus = payout['status'];
+              final amount = payout['amount'];
+              final amountDue = payout['amount_due'];
+              final month = payout['month'];
+
+              final formattedDate =
+              DateFormat('MMM d, yyyy - hh:mm a').format(payoutDate);
+
+              final isPaid = payoutStatus == 'paid';
+              final statusText = isPaid ? 'RECEIVED' : payoutStatus.toUpperCase();
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Payout for $month",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isPaid
+                                  ? Colors.green[100]
+                                  : Colors.orange[100],
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              statusText,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: isPaid
+                                    ? Colors.green[800]
+                                    : Colors.orange[800],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        "Amount Paid: ₹$amount",
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        "Payout Date: $formattedDate",
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInvestmentDialog(
+      BuildContext context,
+      Map<String, dynamic> property,
+      ) {
+    final quoteAmount = double.tryParse(property['quote_amount']) ?? 0.0;
+    final unitPrice = quoteAmount / 1000;
+    final propertyId = property['property_id'];
+
+    final investments = property['investments'] as List;
+    final unitsBought = investments.fold(0, (sum, investment) {
+      return sum + (investment['units_purchased'] as int);
+    });
+    final availableUnits = (1000 - unitsBought).clamp(0, 1000);
+
+    int selectedUnits = 1;
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        final totalAmount = selectedUnits * unitPrice;
+
+        return Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 6,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Invest",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("Unit Price", style: TextStyle(color: Colors.grey[700])),
+                    Text("₹${unitPrice.toStringAsFixed(2)}",
+                        style: const TextStyle(fontWeight: FontWeight.w500)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("Available Units", style: TextStyle(color: Colors.grey[700])),
+                    Text("$availableUnits",
+                        style: const TextStyle(fontWeight: FontWeight.w500)),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Text("Select Units to Invest", style: TextStyle(color: Colors.grey[700])),
+                Slider(
+                  activeColor: Colors.green.shade500,
+                  value: selectedUnits.toDouble(),
+                  min: 1,
+                  max: availableUnits.toDouble(),
+                  divisions: availableUnits - 1 > 0 ? availableUnits - 1 : 1,
+                  label: "$selectedUnits",
+                  onChanged: (value) {
+                    setState(() {
+                      selectedUnits = value.round();
+                    });
+                  },
+                ),
+                Center(
+                  child: Text(
+                    "$selectedUnits Units = ₹${totalAmount.toStringAsFixed(2)}",
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      _showPaymentDialog(
+                        context,
+                        totalAmount.toInt(),
+                        "ecofund@upi",
+                        propertyId,
+                        selectedUnits,
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      backgroundColor: Colors.green.shade500,
+                    ),
+                    child: const Text(
+                      "Proceed to Pay",
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+
+  void _showPaymentDialog(
+      BuildContext context,
+      int amount,
+      String upiId,
+      String propertyId,
+      int units,
+      ) {
+    final txnController = TextEditingController();
+    final qrUrl =
+        'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=$upiId&pn=EcoFund&am=$amount';
+
+    showDialog(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.network(qrUrl, height: 180, width: 180),
+              const SizedBox(height: 12),
+              Text('Amount Due: ₹$amount', style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('UPI ID: $upiId', style: const TextStyle(color: Colors.grey)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: txnController,
+                decoration: const InputDecoration(
+                  labelText: 'Enter Transaction ID',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () async {
+                  final txnId = txnController.text.trim();
+                  if (txnId.isEmpty) return;
+
+                  final success = await InvestorServices.makeInvestment(
+                    propertyId,
+                    units,
+                  );
+
+                  Navigator.pop(context);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        success ? 'Payment marked as paid!' : 'Payment confirmation failed',
+                      ),
+                    ),
+                  );
+                },
+                child: const Text(
+                  'Confirm Payment',
+                  style: TextStyle(color: Colors.white),
+                ),
+              )
+            ],
+          ),
+        );
+      },
+    );
+  }
+
 
   Widget _buildPropertyHeader(BuildContext context) {
     return Card(
@@ -89,7 +381,10 @@ class DetailedListingPage extends StatelessWidget {
                 Expanded(
                   child: Text(
                     property['address'],
-                    style: Theme.of(context).textTheme.titleLarge,
+                    style: Theme
+                        .of(context)
+                        .textTheme
+                        .titleLarge,
                   ),
                 ),
               ],
@@ -97,7 +392,10 @@ class DetailedListingPage extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               '${property['city']}, ${property['pincode']}',
-              style: Theme.of(context).textTheme.titleMedium,
+              style: Theme
+                  .of(context)
+                  .textTheme
+                  .titleMedium,
             ),
             const SizedBox(height: 16),
             _buildStatusRow('Status:', property['property_status']),
@@ -111,6 +409,7 @@ class DetailedListingPage extends StatelessWidget {
       ),
     );
   }
+
 
   Widget _buildStatusRow(String label, String value) {
     return Padding(
@@ -128,8 +427,7 @@ class DetailedListingPage extends StatelessWidget {
     );
   }
 
-  Widget _buildInvestmentPieChart(
-      Map<String, double> data,
+  Widget _buildInvestmentPieChart(Map<String, double> data,
       double quotedAmount,
       BuildContext context,
       Map<String, List<Map<String, dynamic>>> investorDetails) {
@@ -166,7 +464,8 @@ class DetailedListingPage extends StatelessWidget {
       sections.add(PieChartSectionData(
         color: Colors.grey.shade300,
         value: remainingInvestment,
-        title: '${((remainingInvestment / quotedAmount) * 100).toStringAsFixed(1)}%',
+        title: '${((remainingInvestment / quotedAmount) * 100).toStringAsFixed(
+            1)}%',
         radius: 60,
         titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
       ));
@@ -189,7 +488,8 @@ class DetailedListingPage extends StatelessWidget {
               const Text("Investments",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
-              SizedBox(height: 200, child: PieChart(PieChartData(sections: sections))),
+              SizedBox(height: 200,
+                  child: PieChart(PieChartData(sections: sections))),
               const SizedBox(height: 24),
 
               // Progress Bar Below
@@ -211,7 +511,10 @@ class DetailedListingPage extends StatelessWidget {
                       ),
                       Container(
                         height: 28,
-                        width: MediaQuery.of(context).size.width * 0.85 *
+                        width: MediaQuery
+                            .of(context)
+                            .size
+                            .width * 0.85 *
                             progressPercentage.clamp(0.0, 1.0),
                         decoration: BoxDecoration(
                           color: Colors.green,
@@ -221,7 +524,8 @@ class DetailedListingPage extends StatelessWidget {
                       Positioned.fill(
                         child: Center(
                           child: Text(
-                            "${(progressPercentage * 100).toStringAsFixed(1)}% funded",
+                            "${(progressPercentage * 100).toStringAsFixed(
+                                1)}% funded",
                             style: const TextStyle(
                                 color: Colors.black,
                                 fontWeight: FontWeight.bold,
@@ -239,6 +543,7 @@ class DetailedListingPage extends StatelessWidget {
       ),
     );
   }
+
   void _showInvestorDetails(BuildContext context,
       Map<String, List<Map<String, dynamic>>> investorDetails) {
     showModalBottomSheet(
@@ -265,7 +570,10 @@ class DetailedListingPage extends StatelessWidget {
                 ),
                 Text(
                   'Investor Details',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme
+                      .of(context)
+                      .textTheme
+                      .titleLarge,
                 ),
                 const SizedBox(height: 12),
                 Expanded(
@@ -300,7 +608,8 @@ class DetailedListingPage extends StatelessWidget {
                                   padding:
                                   const EdgeInsets.symmetric(vertical: 6),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment
+                                        .start,
                                     children: [
                                       Text(
                                         'Units Purchased: ${detail['units_purchased']}',
@@ -328,6 +637,7 @@ class DetailedListingPage extends StatelessWidget {
       },
     );
   }
+
   Widget _buildEnergyLogChart(Map<String, double> energyData) {
     final sortedKeys = energyData.keys.toList()
       ..sort((a, b) => a.toMonthDate().compareTo(b.toMonthDate()));
@@ -362,7 +672,8 @@ class DetailedListingPage extends StatelessWidget {
                         return touchedSpots.map((spot) {
                           final month = sortedKeys[spot.x.toInt()];
                           return LineTooltipItem(
-                            '${month.getMonthShortName()} ${month.split('-')[1]}\n${spot.y.toInt()} kWh',
+                            '${month.getMonthShortName()} ${month.split(
+                                '-')[1]}\n${spot.y.toInt()} kWh',
                             const TextStyle(color: Colors.white),
                           );
                         }).toList();
@@ -373,7 +684,8 @@ class DetailedListingPage extends StatelessWidget {
                     LineChartBarData(
                       spots: spots,
                       isCurved: true,
-                      curveSmoothness: 0.15, // Fixes unnatural dips
+                      curveSmoothness: 0.15,
+                      // Fixes unnatural dips
                       color: Colors.green,
                       dotData: FlDotData(show: true),
                       belowBarData: BarAreaData(
@@ -443,124 +755,7 @@ class DetailedListingPage extends StatelessWidget {
       ),
     );
   }
-
-
-  Widget _buildPaymentDetails(BuildContext context, List<dynamic> payments) {
-    if (payments.isEmpty) {
-      return SizedBox.shrink(); // Return an empty widget if no payments
-    }
-
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Payment Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            ...payments.map((p) {
-              final status = p['status'].toString().toUpperCase();
-              final isPaid = status == 'PAID';
-              final date = DateTime.parse(p['created_at']);
-              final amount = p['amount_due'];
-              final paymentId = p['payment_id'];
-
-              return InkWell(
-                onTap: () {
-                  if (!isPaid) {
-                    _showPaymentDialog(
-                      context,
-                      amount,
-                      'company@upi', // Replace with actual UPI ID if dynamic
-                      paymentId,
-                    );
-                  }
-                },
-                child: Column(
-                  children: [
-                    ListTile(
-                      contentPadding: const EdgeInsets.symmetric(vertical: 8.0),
-                      leading: Icon(
-                        isPaid ? Icons.check_circle : Icons.error,
-                        color: isPaid ? Colors.green : Colors.red,
-                      ),
-                      title: Text('₹$amount'),
-                      subtitle: Text('Invoice Raised: ${date.day}/${date.month}/${date.year}'),
-                      trailing: Chip(
-                        label: Text(status),
-                        backgroundColor: isPaid
-                            ? Colors.green.shade100
-                            : Colors.red.shade100,
-                      ),
-                    ),
-                    const Divider(),
-                  ],
-                ),
-              );
-            }).toList()
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showPaymentDialog(BuildContext context, int amount, String upiId, String paymentId) {
-    final txnController = TextEditingController();
-    final qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=$upiId&pn=EcoFund&am=$amount';
-
-    showDialog(
-      context: context,
-      builder: (_) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.network(qrUrl, height: 180, width: 180),
-              const SizedBox(height: 12),
-              Text('Amount Due: ₹$amount', style: const TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Text('UPI ID: $upiId', style: const TextStyle(color: Colors.grey)),
-              const SizedBox(height: 12),
-              TextField(
-                controller: txnController,
-                decoration: const InputDecoration(
-                  labelText: 'Enter Transaction ID',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () async {
-                  final txnId = txnController.text.trim();
-                  if (txnId.isEmpty) return;
-
-                  final success = await HomeownerServices.markPaymentAsPaid(paymentId, txnId);
-                  Navigator.pop(context);
-
-                  if (success) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Payment marked as paid!')),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Payment confirmation failed')),
-                    );
-                  }
-                },
-                child: const Text('Confirm Payment', style: TextStyle( color: Colors.white),),
-              )
-            ],
-          ),
-        );
-      },
-    );
-  }
-
 }
-
 
 extension MonthName on String {
   String getMonthShortName() {

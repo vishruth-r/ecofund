@@ -2,12 +2,24 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../services/vendor_services.dart';
+import '../../../services/vendor_services.dart';
 import '../../widgets/homeowner_navbar.dart';
 
 class DetailedVendorListingPage extends StatelessWidget {
+
+  final TextEditingController monthController = TextEditingController();
+  final TextEditingController energyOutputController = TextEditingController();
+
+  @override
+  void dispose() {
+    monthController.dispose();
+    energyOutputController.dispose();
+  }
+
   final Map<String, dynamic> property;
 
-  const DetailedVendorListingPage({super.key, required this.property});
+  DetailedVendorListingPage({super.key, required this.property});
 
   @override
   Widget build(BuildContext context) {
@@ -55,15 +67,15 @@ class DetailedVendorListingPage extends StatelessWidget {
           children: [
             _buildPropertyHeader(context),
             const SizedBox(height: 16),
+            if (property['property_status'] == 'funded')
+              _buildEnergyLogSubmissionTab(context, energyLogs, property['property_id']),
+            const SizedBox(height: 16),
+            if (property['property_status'] == 'funded')
+              _buildEnergyLogChart(energyData),
+            const SizedBox(height: 16),
             if (property['property_status'] != 'pending')
               _buildInvestmentPieChart(
                   investorData, quoteAmount, context, investorDetails),
-            const SizedBox(height: 16),
-            if (property['property_status'] != 'pending' &&
-                property['property_status'] != 'quoted')
-              _buildEnergyLogChart(energyData),
-            if (property['property_status'] == 'funded')
-              _buildEnergyLogSubmissionTab(context, energyLogs, property['property_id']),
 
           ],
         ),
@@ -133,12 +145,13 @@ class DetailedVendorListingPage extends StatelessWidget {
     );
   }
 
-  Widget _buildInvestmentPieChart(Map<String, double> data, double quotedAmount,
+  Widget _buildInvestmentPieChart(
+      Map<String, double> data,
+      double quotedAmount,
       BuildContext context,
       Map<String, List<Map<String, dynamic>>> investorDetails) {
-    // If there are no investors, show a message instead of the pie chart
     if (data.isEmpty) {
-      return SizedBox.shrink(); // Return an empty widget if no data
+      return SizedBox.shrink();
     }
 
     final colors = [
@@ -146,21 +159,15 @@ class DetailedVendorListingPage extends StatelessWidget {
       Colors.green,
       Colors.orange,
       Colors.purple,
-      Colors.grey
+      Colors.teal
     ];
 
-    // Calculate total invested amount
-    double totalInvested = data.values.reduce((sum, element) => sum + element);
-
-    // Calculate the remaining (pending) investment
+    double totalInvested = data.values.fold(0, (sum, element) => sum + element);
     double remainingInvestment = quotedAmount - totalInvested;
 
-    // Create the sections for the pie chart, including a grey section for the pending investment
     List<PieChartSectionData> sections = data.entries.map((e) {
       final index = data.keys.toList().indexOf(e.key);
       final color = colors[index % colors.length];
-
-      // Calculate the percentage of the quoted amount that the user has invested
       double percentage = (e.value / quotedAmount) * 100;
 
       return PieChartSectionData(
@@ -172,17 +179,17 @@ class DetailedVendorListingPage extends StatelessWidget {
       );
     }).toList();
 
-    // If there is remaining investment, add it as a grey section
     if (remainingInvestment > 0) {
       sections.add(PieChartSectionData(
-        color: Colors.grey,
+        color: Colors.grey.shade300,
         value: remainingInvestment,
-        title: '${((remainingInvestment / quotedAmount) * 100).toStringAsFixed(
-            1)}%',
+        title: '${((remainingInvestment / quotedAmount) * 100).toStringAsFixed(1)}%',
         radius: 60,
         titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
       ));
     }
+
+    double progressPercentage = totalInvested / quotedAmount;
 
     return GestureDetector(
       onTap: () {
@@ -199,15 +206,57 @@ class DetailedVendorListingPage extends StatelessWidget {
               const Text("Investments",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
-              SizedBox(
-                  height: 200,
-                  child: PieChart(PieChartData(sections: sections))),
+              SizedBox(height: 200, child: PieChart(PieChartData(sections: sections))),
+              const SizedBox(height: 24),
+
+              // Progress Bar Below
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Funding Progress",
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Stack(
+                    children: [
+                      Container(
+                        height: 28,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      Container(
+                        height: 28,
+                        width: MediaQuery.of(context).size.width * 0.85 *
+                            progressPercentage.clamp(0.0, 1.0),
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: Center(
+                          child: Text(
+                            "${(progressPercentage * 100).toStringAsFixed(1)}% funded",
+                            style: const TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ],
           ),
         ),
       ),
     );
   }
+
   void _showInvestorDetails(BuildContext context,
       Map<String, List<Map<String, dynamic>>> investorDetails) {
     showModalBottomSheet(
@@ -298,19 +347,15 @@ class DetailedVendorListingPage extends StatelessWidget {
     );
   }
 
-  Widget _buildEnergyLogChart(Map<String, double> data) {
-    if (data.isEmpty) {
-      return SizedBox.shrink(); // Return an empty widget if no data
-    }
 
-    final sortedKeys = data.keys.toList()
-      ..sort();
-    final spots = sortedKeys
-        .asMap()
-        .entries
-        .map((entry) {
-      return FlSpot(entry.key.toDouble(), data[entry.value]!);
-    }).toList();
+  Widget _buildEnergyLogChart(Map<String, double> energyData) {
+    final sortedKeys = energyData.keys.toList()
+      ..sort((a, b) => a.toMonthDate().compareTo(b.toMonthDate()));
+
+    final List<FlSpot> spots = [];
+    for (int i = 0; i < sortedKeys.length; i++) {
+      spots.add(FlSpot(i.toDouble(), energyData[sortedKeys[i]]!));
+    }
 
     return Card(
       elevation: 4,
@@ -320,46 +365,96 @@ class DetailedVendorListingPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Monthly Energy Output (kWh)",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              "Monthly Energy Output",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
             SizedBox(
-              height: 200,
+              height: 240,
               child: LineChart(
                 LineChartData(
+                  minY: 0,
+                  lineTouchData: LineTouchData(
+                    handleBuiltInTouches: true,
+                    touchTooltipData: LineTouchTooltipData(
+                      getTooltipItems: (List<LineBarSpot> touchedSpots) {
+                        return touchedSpots.map((spot) {
+                          final month = sortedKeys[spot.x.toInt()];
+                          return LineTooltipItem(
+                            '${month.getMonthShortName()} ${month.split('-')[1]}\n${spot.y.toInt()} kWh',
+                            const TextStyle(color: Colors.white),
+                          );
+                        }).toList();
+                      },
+                    ),
+                  ),
                   lineBarsData: [
                     LineChartBarData(
                       spots: spots,
                       isCurved: true,
+                      curveSmoothness: 0.15, // Fixes unnatural dips
                       color: Colors.green,
                       dotData: FlDotData(show: true),
                       belowBarData: BarAreaData(
                         show: true,
-                        color: Colors.green.withOpacity(0.3),
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.green.withOpacity(0.4),
+                            Colors.green.withOpacity(0.0),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
                       ),
-                    )
+                    ),
                   ],
                   titlesData: FlTitlesData(
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
+                        reservedSize: 36,
+                        interval: 1,
                         getTitlesWidget: (value, meta) {
-                          final index = value.toInt();
-                          if (index < 0 || index >= sortedKeys.length) {
-                            return const SizedBox.shrink();
+                          int index = value.toInt();
+                          if (index >= 0 && index < sortedKeys.length) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                sortedKeys[index].getMonthShortName(),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            );
                           }
-                          return Text(sortedKeys[index]
-                              .split('-')
-                              .last); // show month only
+                          return const SizedBox.shrink();
                         },
                       ),
                     ),
                     leftTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: true),
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 40,
+                        getTitlesWidget: (value, _) {
+                          return Text(
+                            value.toInt().toString(),
+                            style: const TextStyle(fontSize: 12),
+                          );
+                        },
+                      ),
+                    ),
+                    rightTitles:
+                    AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles:
+                    AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  borderData: FlBorderData(
+                    show: true,
+                    border: const Border(
+                      bottom: BorderSide(),
+                      left: BorderSide(),
                     ),
                   ),
-                  borderData: FlBorderData(show: true),
-                  gridData: FlGridData(show: false),
+                  gridData: FlGridData(show: true),
                 ),
               ),
             ),
@@ -368,10 +463,8 @@ class DetailedVendorListingPage extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildEnergyLogSubmissionTab(BuildContext context, List<dynamic> logs, String propertyId) {
-    final TextEditingController monthController = TextEditingController();
-    final TextEditingController energyOutputController = TextEditingController();
+  // Widget to submit energy logs
+Widget _buildEnergyLogSubmissionTab(BuildContext context, List<dynamic> logs, String propertyId) {
 
     // Extract already logged months
     final Set<String> loggedMonths = logs.map((log) => log['month'] as String).toSet();
@@ -389,7 +482,6 @@ class DetailedVendorListingPage extends StatelessWidget {
         lastDate: lastDate,
         helpText: 'Select Month for Energy Log',
       );
-
 
       if (picked != null) {
         final formatted = DateFormat('MM-yyyy').format(picked);
@@ -461,7 +553,11 @@ class DetailedVendorListingPage extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[400],
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                onPressed: () async {
                   final month = monthController.text.trim();
                   final output = double.tryParse(energyOutputController.text.trim());
 
@@ -479,22 +575,51 @@ class DetailedVendorListingPage extends StatelessWidget {
                     return;
                   }
 
-                  // TODO: Submit to backend
-                  print("Submitting: $month - $output units");
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Submitted new log (mock)!")),
+                  // Call the submitEnergyLog function
+                  final result = await VendorServices.submitEnergyLog(
+                    propertyId: propertyId,
+                    month: month,
+                    unitsProduced: output.toInt(),
                   );
 
-                  // Clear inputs
+                  if (result['success']) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(result['message'])),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(result['message'])),
+                    );
+                  }
+
+                  // Clear inputs after submission
                   monthController.clear();
                   energyOutputController.clear();
                 },
-                child: const Text("Submit Log"),
+                child: const Text("Submit Log", style: TextStyle(color: Colors.white),)
               ),
             ),
           ],
         ),
       ),
     );
+  }
+}
+
+extension MonthName on String {
+  String getMonthShortName() {
+    const monthNames = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    final parts = split('-'); // "mm-yyyy"
+    if (parts.length != 2) return this;
+    final monthIndex = int.tryParse(parts[0]) ?? 1;
+    return monthNames[monthIndex - 1];
+  }
+
+  DateTime toMonthDate() {
+    final parts = split('-'); // "mm-yyyy"
+    return DateTime(int.parse(parts[1]), int.parse(parts[0]));
   }
 }

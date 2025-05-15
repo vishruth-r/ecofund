@@ -2,7 +2,9 @@ import 'package:ecofund/views/screens/homeowner_page/homeowner_detailed_listing_
 import 'package:ecofund/views/screens/homeowner_page/homeowner_dashboard_page.dart';
 import 'package:ecofund/views/screens/homeowner_page/homeowner_listing_page.dart';
 import 'package:ecofund/views/screens/investor_page/investor_dashboard.dart';
+import 'package:ecofund/views/screens/investor_page/investor_investments_page.dart';
 import 'package:ecofund/views/screens/login_page.dart';
+import 'package:ecofund/views/screens/profile_page.dart';
 import 'package:ecofund/views/screens/signup_page.dart';
 import 'package:ecofund/views/screens/vendor_page/vendor_dashboard.dart';
 import 'package:ecofund/views/screens/vendor_page/vendor_listing_page.dart';
@@ -18,17 +20,22 @@ class AppRoutes {
   static const String homeownerListings = '/homeowner-listings';
   static const String detailedListing = '/detailed_listing';
   static const String vendorListing = '/vendor-listings';
+  static const String investorInvestmentsPage = '/investor-investments';
+  static const String profile = '/profile';
 
   static Map<String, WidgetBuilder> routes = {
     login: (context) => LoginPage(),
     signup: (context) => SignupPage(),
-    investorDashboard: (context) => InvestorDashboard(),
+    investorDashboard: (context) => InvestorDashboardPage(),
     vendorDashboard: (context) => VendorDashboard(),
     homeownerDashboard: (context) => HomeownerDashboard(),
     homeownerListings: (context) => HomeownerListingPage(),
     detailedListing: (context) => DetailedListingPage(property: {},),
     vendorListing: (context) => VendorListingPage(),
+    investorInvestmentsPage: (context) => InvestmentsPage(),
+    profile: (context) => ProfilePage(),
   };
+
 
 
 }
